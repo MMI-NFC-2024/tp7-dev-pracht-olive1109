@@ -1,0 +1,103 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+    <h1 class="text-2xl font-bold mb-6">Carte Population (GeoJSON + Plot)</h1>
+
+    <div class="flex gap-4 mb-4">
+    <select id="periode" class="border p-2 rounded"></select>
+    <select id="sex" class="border p-2 rounded"></select>
+    <select id="age" class="border p-2 rounded"></select>
+    </div>
+
+    <div id="plot-area" class="mt-6"></div>
+
+    <script type="module">
+        import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+        (async () => {
+        try {
+        // -> utiliser la racine /assets/... (pas /public/...)
+        const [geo, data] = await Promise.all([
+            fetch("/assets/departements.json").then(r => { if (!r.ok) throw new Error("geojson fetch failed "+r.status); return r.json() }),
+            fetch("/assets/populationMain.json").then(r => { if (!r.ok) throw new Error("data fetch failed "+r.status); return r.json() })
+        ]);
+
+        console.log("geo loaded:", geo && (geo.type || "no-type"), "features:", (geo.features || []).length);
+        console.log("data loaded:", Array.isArray(data) ? data.length : typeof data);
+
+        const elmYear = document.getElementById("periode");
+        const elmSex = document.getElementById("sex");
+        const elmAge = document.getElementById("age");
+        const plotArea = document.getElementById("plot-area");
+        if (!elmYear || !elmSex || !elmAge || !plotArea) return console.error("éléments DOM manquants");
+
+        const listePeriode = [...new Set((data||[]).map(d => d.Période))].reverse();
+        const listeSex = [...new Set((data||[]).map(d => d.Sexe ?? d.Sex ?? d.sex))];
+        const listeAge = [...new Set((data||[]).map(d => d["Âge"] ?? d.Age ?? d.age))];
+
+        listePeriode.forEach(p => elmYear.add(new Option(p, p)));
+        listeSex.forEach(s => elmSex.add(new Option(s, s)));
+        listeAge.forEach(a => elmAge.add(new Option(a, a)));
+
+        const lookup = new Map();
+        (data||[]).forEach(d => {
+            const name = d.Géographie ?? d.GEOGRAPHIE ?? d.geographie;
+            const period = String(d.Période);
+            const sex = d.Sexe ?? d.Sex ?? d.sex;
+            const age = d["Âge"] ?? d.Age ?? d.age;
+            const value = d.Valeur ?? d.VALEUR ?? d.value ?? 0;
+            if (name != null) lookup.set(`${name}||${period}||${sex}||${age}`, value);
+        });
+
+        const features = geo.features ?? (geo.type === "FeatureCollection" ? geo : null);
+        if (!features) return console.error("GeoJSON invalide ou sans features");
+
+        function getValueFor(feature, year, sex, age) {
+            const name = feature.properties?.nom ?? feature.properties?.NOM ?? feature.properties?.name;
+            return lookup.get(`${name}||${year}||${sex}||${age}`) ?? 0;
+        }
+
+        function render() {
+            const year = elmYear.value || listePeriode[0];
+            const sex = elmSex.value || listeSex[0];
+            const age = elmAge.value || listeAge[0];
+            plotArea.innerHTML = "";
+            try {
+            const fig = Plot.plot({
+                projection: { type: "mercator", domain: features },
+                color: { type: "quantile", scheme: "Greens", n: 7, label: "Population" },
+                marks: [
+                Plot.geo(features, {
+                    fill: d => getValueFor(d, year, sex, age),
+                    stroke: "#999",
+                    title: d => {
+                    const name = d.properties?.nom ?? d.properties?.NOM ?? d.properties?.name;
+                    const val = getValueFor(d, year, sex, age);
+                    return `${name} : ${val}`;
+                    },
+                    tip: true
+                })
+                ],
+                ariaLabel: `Carte population ${year} — ${sex} — ${age}`,
+                height: 600
+            });
+            plotArea.appendChild(fig);
+            } catch (err) {
+            console.error("erreur Plot.plot:", err);
+            plotArea.textContent = "Erreur affichage carte, voir console.";
+            }
+        }
+
+        elmYear.addEventListener("change", render);
+        elmSex.addEventListener("change", render);
+        elmAge.addEventListener("change", render);
+        render();
+            } catch (err) {
+            console.error("Erreur initialisation carte:", err);
+            const plotArea = document.getElementById("plot-area");
+            if (plotArea) plotArea.textContent = "Erreur chargement données (voir console)";
+            }
+        })();
+    </script>
+</Layout>

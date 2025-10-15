@@ -1,14 +1,17 @@
 ---
-import PlotFigure from "../components/PlotFigure.astro";
 import Layout from "../layouts/Layout.astro";
-import * as Plot from "@observablehq/plot";
-import penguins from "../assets/penguins.json";
 ---
-
 <Layout>
-  <h1 class="text-2xl">Test Astro et Plot (Observablehq)</h1>
-  <PlotFigure
-    options={{
+  <h1 class="text-2xl font-bold mb-6">Graphique Penguins (test)</h1>
+  <div id="plot-penguins"></div>
+
+  <script type="module">
+    // utilise la version ESM CDN de Plot
+    import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+    // fetch la donnée depuis public/assets
+    const penguins = await fetch("../assets/penguins.json").then(r => r.json());
+
+    const fig = Plot.plot({
       marks: [
         Plot.dot(penguins, {
           x: "culmen_length_mm",
@@ -16,6 +19,13 @@ import penguins from "../assets/penguins.json";
           stroke: "species",
         }),
       ],
-    }}
-  />
+      height: 480,
+      marginLeft: 60,
+      marginBottom: 60,
+      title: "Culmen length vs depth",
+      caption: "Source : penguins.json",
+      ariaLabel: "Nuage de points Penguins"
+    });
+    document.getElementById("plot-penguins").appendChild(fig);
+  </script>
 </Layout>

@@ -1,26 +1,22 @@
 ---
 import "../styles/global.css";
 ---
-
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="generator" content={Astro.generator} />
-    <title>Astro Basics</title>
+    <title>TP Astro / Plot / Leaflet / A11y</title>
   </head>
-  <body>
-    <slot />
+  <body class="min-h-screen bg-gray-50 text-gray-900">
+    <nav class="bg-purple-900 text-white p-4 flex gap-6">
+      <a href="/" class="hover:underline">Accueil</a>
+      <a href="/leaflet" class="hover:underline">Leaflet</a>
+      <a href="/geojson" class="hover:underline">GeoJSON / Plot</a>
+      <a href="/a11y" class="hover:underline">Accessibilité</a>
+    </nav>
+    <main class="p-6">
+      <slot />
+    </main>
   </body>
 </html>
-
-<style>
-  html,
-  body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-  }
-</style>

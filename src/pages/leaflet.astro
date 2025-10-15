@@ -1,0 +1,70 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <h1 class="text-2xl font-bold mb-6">Carte Leaflet (établissements)</h1>
+  <div id="map" style="height: 600px;"></div>
+
+  <script type="module">
+    // exécution après chargement du client
+    (async () => {
+      // Leaflet ESM via CDN + CSS dynamique
+      const mod = await import("https://cdn.jsdelivr.net/npm/leaflet@1.9.4/+esm");
+      const L = mod.default;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+
+      // charge les établissements (public/assets)
+      const resp = await fetch("/assets/listeEtablissements.json");
+      const listeEtablissements = await resp.json();
+
+      const mapEl = document.getElementById("map");
+      if (!mapEl) return;
+
+      const map = L.map(mapEl).setView([46.6033, 1.883], 6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Regrouper les établissements par position (arrondie) pour compter le nombre par point
+      const groups = new Map();
+      const round = (v, p = 5) => Number(v).toFixed(p);
+
+      for (const e of listeEtablissements) {
+        const latRaw = e.latitude ?? e.lat ?? e.coordonnees?.lat;
+        const lonRaw = e.longitude ?? e.lon ?? e.coordonnees?.lon;
+        const lat = Number(latRaw);
+        const lon = Number(lonRaw);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+        // clé par coordonnées arrondies pour regrouper établissements proches
+        const key = `${round(lat, 4)},${round(lon, 4)}`;
+        const entry = groups.get(key) ?? { sumLat: 0, sumLon: 0, count: 0, names: [] };
+        entry.sumLat += lat;
+        entry.sumLon += lon;
+        entry.count += 1;
+        entry.names.push(e.nom ?? e.siege_lib ?? e.com_nom ?? "Établissement");
+        groups.set(key, entry);
+      }
+
+      // ajouter circleMarkers rouges dont la taille dépend du nombre d'établissements
+      groups.forEach((g) => {
+        const avgLat = g.sumLat / g.count;
+        const avgLon = g.sumLon / g.count;
+        // taille proportionnelle à la racine carrée du nombre (pour limiter l'écart)
+        const radius = Math.max(4, Math.min(30, 4 + Math.sqrt(g.count) * 3));
+        const marker = L.circleMarker([avgLat, avgLon], {
+          color: "purple",
+          fillColor: "purple",
+          fillOpacity: 0.7,
+          radius
+        }).addTo(map);
+
+        const popupHtml = `<strong>${g.count} établissement(s)</strong><br>${g.names.slice(0,5).join("<br>")}${g.names.length>5?`<br>…(+${g.names.length-5})`:''}`;
+        marker.bindPopup(popupHtml);
+      });
+    })();
+  </script>
+</Layout>

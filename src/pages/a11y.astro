@@ -1,0 +1,27 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <h1 class="text-2xl font-bold mb-6">Accessibilité (a11y)</h1>
+  <div id="plot-a11y"></div>
+
+  <script type="module">
+    import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+    const fig = Plot.plot({
+      title: "Titre informatif",
+      subtitle: "Sous-titre pour contexte",
+      caption: "Figure : exemple a11y",
+      ariaLabel: "Graphique démonstratif pour accessibilité",
+      marks: [
+        Plot.frame(),
+        Plot.text(["Les titres et légendes aident l'interprétation."], {
+          lineWidth: 30,
+          frameAnchor: "middle"
+        })
+      ],
+      height: 300
+    });
+    document.getElementById("plot-a11y").appendChild(fig);
+  </script>
+</Layout>
